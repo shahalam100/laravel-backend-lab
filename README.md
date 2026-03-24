@@ -1,75 +1,89 @@
-# Laravel Backend Lab: Queue & Jobs Fix
+# Laravel Backend Lab: Revision & Interview Prep
 
-This repository exists as a reference for background job processing and debugging queue failures in Laravel.
+This repository is a hands-on lab environment for mastering Laravel backend concepts, including background jobs, and API authentication.
 
-## The Problem
-When running `php artisan queue:work` or triggering the API endpoint (`/api/send-mail`) via Postman, the `SendEmailJob` was correctly dispatched and added to the queue, but the queue worker constantly failed with this error:
+---
 
+## 🛠️ Topic 1: Queues & Jobs Fix (Email Case Study)
+
+### The Problem
+When running the `SendEmailJob`, the queue worker was failing with a `View [view.test] not found` error, even though the mail was correctly dispatched to the database queue.
+
+### Step-by-Step Fix:
+1.  **Corrected View Path**: Fixed `app/Mail/TestMail.php` to point to `emails.test` (resolves to `resources/views/emails/test.blade.php`) instead of the non-existent `view.test`.
+2.  **Cleaner Code**: Updated `app/Jobs/SendEmailJob.php` to use proper imports (`use Illuminate\Support\Facades\Mail;`) instead of inline absolute namespaces.
+3.  **Queue Cycle**:
+    *   `php artisan queue:restart`: To flush the old code from the worker's memory.
+    *   `php artisan queue:retry all`: To re-process the failed rows in the `failed_jobs` table.
+    *   `php artisan queue:work`: To start processing the valid jobs.
+
+---
+
+## 🔐 Topic 2: Authentication (Sanctum + JWT)
+
+### What is the Difference?
+
+#### 1. Laravel Sanctum (Built-in)
+*   **Concept**: Uses **Personal Access Tokens** stored in the database.
+*   **How it Works**: The user logs in, the server generates a random string, stores its hash in the tokens table, and returns the plain string to the user.
+*   **Best For**: Simple APIs, SPAs (Vue/React), and Mobile Apps where database lookup overhead is acceptable.
+
+#### 2. JWT (JSON Web Token)
+*   **Concept**: Uses a **Stateless Token**.
+*   **How it Works**: The token itself contains the user's encoded data (ID, name, permissions) and is digitally signed. The server validates the signature instead of looking at a database.
+*   **Best For**: Large-scale distributed systems, microservices, and apps where performance is critical (no DB hits for user auth).
+
+---
+
+### Step-by-Step Implementation Guide (Sanctum)
+
+Follow these steps to implement the "Register/Login/Profile/Logout" flow as found in this project:
+
+#### 1. Setup API
+In Laravel 11/12+, run this to scaffolding your API routes:
+```bash
+php artisan install:api
 ```
-App\Jobs\SendEmailJob ....................... FAIL
-```
 
-Checking `storage/logs/laravel.log` revealed the root cause:
-```
-View [view.test] not found.
-```
-
-## Step-by-Step Fixes
-
-### 1. Fixed the Mailable View Path
-The `TestMail` class was looking for a blade view that did not exist (`resources/views/view/test.blade.php`). The actual test email template was located inside `resources/views/emails/test.blade.php`.
-
-**Fixed in `app/Mail/TestMail.php`:**
+#### 2. Configure User Model
+Ensure your `User` model uses the `HasApiTokens` trait:
 ```php
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.test', // Changed from 'view.test' to 'emails.test'
-        );
-    }
-```
+use Laravel\Sanctum\HasApiTokens;
 
-### 2. Cleaned Up Job Namespace Imports
-In the `SendEmailJob` handler, explicit global namespaces were being used inline which made the code messy and prone to namespace resolution errors. It was updated to correctly use proper `use` statements.
-
-**Fixed in `app/Jobs/SendEmailJob.php`:**
-```php
-<?php
-
-namespace App\Jobs;
-
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail; // Added explicit import
-use App\Mail\TestMail;               // Added explicit import
-
-class SendEmailJob implements ShouldQueue
-{
-    use Queueable;
-
-    public string $email;
-
-    public function __construct(string $email)
-    {
-        $this->email = $email;
-    }
-
-    public function handle(): void
-    {
-        // Replaced \Mail::to($this->email)->send(new \App\Mail\TestMail());
-        Mail::to($this->email)->send(new TestMail()); 
-    }
+class User extends Authenticatable {
+    use HasApiTokens, HasFactory, Notifiable;
 }
 ```
 
-### 3. Restarted and Retried Jobs
-Because background workers store the application state in memory, they do not automatically "see" code changes until the worker is restarted.
+#### 3. Create Auth Controller
+Create `App/Http/Controllers/Api/AuthController.php` with these key methods:
+*   **register(Request $request)**: Validate data -> Create User -> Create Token -> Return as JSON.
+*   **login(Request $request)**: Validate -> Authenticate via `Hash::check()` -> Create Token -> Return JSON.
+*   **logout(Request $request)**: Revoke token via `$request->user()->currentAccessToken()->delete()`.
 
-After fixing the view path and cleaning up the code, the following commands were run:
+#### 4. Define API Routes
+Configure `routes/api.php` by separating public and protected routes:
 
-1. `php artisan queue:restart` *(Tells the running worker to safely shut down)*
-2. `php artisan queue:retry all` *(Re-pushes all previously failed jobs back onto the active queue)*
-3. `php artisan queue:work --once` *(Processed the newly fixed jobs successfully)*
+```php
+// Public Routes
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
 
-## Conclusion
-Always ensure your Mailable classes resolve to an **existing** blade template path. If a job fails, the stack trace inside `storage/logs/laravel.log`, followed by `php artisan queue:retry all` are your best tools for tracking down the solution!
+// Protected Routes (Required Authorization Header)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) { return $request->user(); });
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+```
+
+#### 5. Testing in Postman
+*   **Headers**: Always add `Accept: application/json` and `Content-Type: application/json`.
+*   **Authorization**: For protected routes, use **Bearer Token** type and paste the token received during login.
+
+---
+
+## 🚀 Conclusion
+Always remember:
+1. **Queues**: If code changes, you **must** restart the worker.
+2. **Auth**: Sanctum provides a database-backed token, while JWT provides a stateless signature-backed token.
+3. **Validation**: Use Form Requests to keep your controllers clean!
