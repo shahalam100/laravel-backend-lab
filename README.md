@@ -79,6 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
 #### 5. Testing in Postman
 *   **Headers**: Always add `Accept: application/json` and `Content-Type: application/json`.
 *   **Authorization**: For protected routes, use **Bearer Token** type and paste the token received during login.
+*   **Collection**: A ready-to-import Postman collection is included in the `postman/` directory of this repository!
 
 ---
 
