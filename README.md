@@ -181,6 +181,51 @@ Add the following block inside the `<form>` (ideally after the email field):
 
 ---
 
+## 📦 Topic 5: Building CRUD API Endpoints (The Product Lab)
+
+For interviews, you must be able to quickly build a CRUD (Create, Read, Update, Delete) API from scratch. Here was our process for the **Product API**:
+
+### 1. Schema & Model
+Generate the Model and Migration at once:
+```bash
+php artisan make:model Product -m
+```
+Define the schema in the migration and add the `$fillable` fields in `app/Models/Product.php`:
+```php
+protected $fillable = ['name', 'description', 'price', 'stock'];
+```
+
+### 2. Resource Controller
+Create an "API Resource Controller" which already includes empty methods for index, store, show, update, and destroy:
+```bash
+php artisan make:controller ProductController --api
+```
+
+### 3. Defining the Routes
+Instead of writing 5 routes, use `apiResource` in `routes/api.php`:
+```php
+use App\Http\Controllers\ProductController;
+Route::apiResource('Products', ProductController::class);
+```
+
+### 4. Implementing the Logic
+| Method | Action | Implementation Tip |
+| :--- | :--- | :--- |
+| `index()` | List All | `return Product::latest()->get();` |
+| `store()` | Create | Use `Request $request->validate([...])` then `Product::create($validated);` |
+| `show()` | View One | Use Type Hinting: `public function show(Product $product) { return $product; }` |
+| `update()` | Edit | Use the `sometimes` validation rule: `'price' => 'sometimes|numeric'` |
+| `destroy()` | Delete | `$product->delete(); return response()->json(['message' => 'Deleted']);` |
+
+### 5. Postman Quick Reference
+- **POST**: `http://127.0.0.1:8000/api/Products` (Body: JSON)
+- **GET**: `http://127.0.0.1:8000/api/Products` (Lists all)
+- **GET**: `http://127.0.0.1:8000/api/Products/1` (Specific item)
+- **PUT**: `http://127.0.0.1:8000/api/Products/1` (Body: JSON)
+- **DELETE**: `http://127.0.0.1:8000/api/Products/1`
+
+---
+
 ## 🚀 Conclusion
 Always remember:
 1. **Queues**: If code changes, you **must** restart the worker.
