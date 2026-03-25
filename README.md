@@ -117,15 +117,67 @@ protected $fillable = ['name', 'email', 'password', 'phone'];
 ```
 
 ### 3. Controller Layer (Validation & Logic)
-Update `app/Http/Controllers/Auth/RegisteredUserController.php`:
-*   Add `'phone' => 'required|string|max:20'` to the validation array.
-*   Add `'phone' => $request->phone` to the `User::create` call.
+**File Path**: `app/Http/Controllers/Auth/RegisteredUserController.php`
+
+Update the `store` method to include the `phone` field in both validation and user creation:
+
+```php
+public function store(Request $request): RedirectResponse
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+        'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        'phone' => 'required|string|max:20', // 1. Added validation
+    ]);
+
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'phone' => $request->phone, // 2. Added saving logic
+    ]);
+
+    // ... handle events and login
+}
+```
 
 ### 4. Frontend Layer (React Component)
-Update `resources/js/Pages/Auth/Register.jsx`:
-*   Add `phone: ''` to the `useForm` initial state.
-*   Add the `<TextInput />` and `<InputLabel />` components to the JSX form.
-*   Bind the value with `onChange={(e) => setData('phone', e.target.value)}`.
+**File Path**: `resources/js/Pages/Auth/Register.jsx`
+
+Update the React component to include the phone input field:
+
+**Part A: The Form Hook**
+Add `phone: ''` to the `useForm` initial state:
+```js
+const { data, setData, post, processing, errors, reset } = useForm({
+    name: '',
+    email: '',
+    phone: '', // 1. Added to state
+    password: '',
+    password_confirmation: '',
+});
+```
+
+**Part B: The JSX Input**
+Add the following block inside the `<form>` (ideally after the email field):
+```jsx
+<div className="mt-4">
+    <InputLabel htmlFor="phone" value="Phone Number" />
+
+    <TextInput
+        id="phone"
+        name="phone"
+        value={data.phone}
+        className="mt-1 block w-full"
+        autoComplete="tel"
+        onChange={(e) => setData('phone', e.target.value)}
+        required
+    />
+
+    <InputError message={errors.phone} className="mt-2" />
+</div>
+```
 
 ---
 
