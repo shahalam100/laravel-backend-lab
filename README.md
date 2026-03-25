@@ -83,8 +83,55 @@ Route::middleware('auth:sanctum')->group(function () {
 
 ---
 
+## ⚡ Topic 3: Laravel Breeze (Inertia + React)
+
+### What is Laravel Breeze?
+Laravel Breeze is a "starter kit" that provides a minimal and simple implementation of all Laravel's authentication features, including login, registration, password reset, email verification, and password confirmation. In this project, we used the **Inertia.js** version with **React**.
+
+### 🛠️ Implementation Steps:
+1.  **Install Package**: `composer require laravel/breeze --dev`
+2.  **Scaffold UI**: `php artisan breeze:install react` (Choose React, Dark Mode, and PHPUnit).
+3.  **Install Front-end Dependencies**: `npm install && npm run dev`
+4.  **Database**: `php artisan migrate`
+
+---
+
+## 📱 Topic 4: The Custom Field Challenge (Interview Must-Know)
+
+A common interview task is to extend a standard authentication flow with a custom field (like `phone`). Here is how we achieved it step-by-step:
+
+### 1. Database Layer
+Create a migration to add the column:
+```bash
+php artisan make:migration add_phone_to_users_table --table=users
+```
+In the migration file:
+```php
+$table->string('phone')->nullable()->after('email');
+```
+
+### 2. Model Layer (Mass Assignment)
+Enable the field in `app/Models/User.php`:
+```php
+protected $fillable = ['name', 'email', 'password', 'phone'];
+```
+
+### 3. Controller Layer (Validation & Logic)
+Update `app/Http/Controllers/Auth/RegisteredUserController.php`:
+*   Add `'phone' => 'required|string|max:20'` to the validation array.
+*   Add `'phone' => $request->phone` to the `User::create` call.
+
+### 4. Frontend Layer (React Component)
+Update `resources/js/Pages/Auth/Register.jsx`:
+*   Add `phone: ''` to the `useForm` initial state.
+*   Add the `<TextInput />` and `<InputLabel />` components to the JSX form.
+*   Bind the value with `onChange={(e) => setData('phone', e.target.value)}`.
+
+---
+
 ## 🚀 Conclusion
 Always remember:
 1. **Queues**: If code changes, you **must** restart the worker.
 2. **Auth**: Sanctum provides a database-backed token, while JWT provides a stateless signature-backed token.
-3. **Validation**: Use Form Requests to keep your controllers clean!
+3. **Breeze**: Use it for quick full-stack scaffolding in machine rounds.
+4. **Custom Fields**: Always update the **Migration -> Model -> Controller -> Frontend** in that specific order.
